@@ -1,0 +1,28 @@
+version: 2
+jobs:
+  build:
+    working_directory: ~/ps-cwblockstores
+    docker:
+      - image: php:7-fpm
+    steps:
+      - checkout
+      - run: apt-get -qq update && apt-get -qq -y install git wget
+      # Composer is missing from CircleCI 2.0
+      # See https://getcomposer.org/doc/faqs/how-to-install-composer-programmatically.md
+      - run: wget https://raw.githubusercontent.com/composer/getcomposer.org/master/web/installer -O - -q |
+             php -- --quiet --filename composer --install-dir /usr/local/bin
+      - run: pecl install xdebug && docker-php-ext-enable xdebug # Needed for html code coverage.
+      - restore_cache:
+          keys:
+            - composer-v1-{{ checksum "composer.json" }}
+            - composer-v1-
+      - run: composer install -q
+      - save_cache:
+          key: composer-v1-{{ checksum "composer.json" }}
+          paths:
+            - vendor
+      - run: mkdir -p phpunit && make test
+      - store_test_results:
+          path: /phpunit
+      - store_artifacts:
+          path: /phpunit
